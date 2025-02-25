@@ -36,20 +36,27 @@ package com.esprit.ms.pidevbackend.Config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Autowired
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -57,26 +64,60 @@ public class SecurityConfig {
     }
 
     @Bean
-    public UserDetailsService userDetailsService() {
-        UserDetails user = User.withUsername("user")
-                .password(passwordEncoder().encode("password"))
-                .roles("USER")
-                .build();
-        return new InMemoryUserDetailsManager(user);
+    public AuthenticationManager authManager(HttpSecurity http) throws Exception {
+        AuthenticationManagerBuilder authenticationManagerBuilder =
+                http.getSharedObject(AuthenticationManagerBuilder.class);
+        return authenticationManagerBuilder.build();
     }
 
+    /*@Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable())
+                //.cors() // Activer CORS
+                //.and()
+                // Désactiver CSRF pour simplifier les tests
+                .authorizeHttpRequests(authz -> authz
+                        .requestMatchers("/api/users/login","/api/users/add").permitAll()
+                        //.requestMatchers("/api/users/getAll").hasRole("ADMIN")// Autoriser l'accès à la route de login
+                        .requestMatchers("/api/users/getAll").permitAll()
+
+                        .anyRequest().authenticated() // Nécessite une authentification pour toutes les autres requêtes
+                )
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class) // Ajouter le filtre JWT
+                .logout(logout -> logout.permitAll());
+        System.out.println("Authorization rules applied"); // Log des règles
+// Autoriser la déconnexion
+
+        return http.build();
+    }
+    /*@Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable()) // Désactiver CSRF
+                .cors(cors -> cors.configure(http)) // Activer CORS avec WebConfig
+                .authorizeHttpRequests(authz -> authz
+                        .requestMatchers("/api/users/login", "/api/users/add").permitAll()
+                        .requestMatchers("/api/users/getAll").permitAll()
+                        .anyRequest().authenticated()
+                )
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class) // Ajouter le filtre JWT
+                .logout(logout -> logout.permitAll());
+
+        return http.build();
+    }*/
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/users/login").permitAll() // Autoriser l'accès à la route de login
-                        .anyRequest().authenticated()
+                        .requestMatchers("/api/users/login", "/api/users/add").permitAll()  // Autorise les accès sans token
+                        .anyRequest().authenticated() // Nécessite une authentification pour toutes les autres requêtes
                 )
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class) // Ajouter le filtre JWT
+                .logout(logout -> logout.permitAll());
 
-                .logout(logout -> logout
-                        .permitAll()
-                );
         return http.build();
     }
+
 }

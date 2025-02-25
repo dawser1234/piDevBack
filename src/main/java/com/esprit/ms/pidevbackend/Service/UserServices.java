@@ -1,9 +1,11 @@
     package com.esprit.ms.pidevbackend.Service;
 
+    import com.esprit.ms.pidevbackend.Config.JwtTokenProvider;
     import com.esprit.ms.pidevbackend.Entity.Presence;
     import com.esprit.ms.pidevbackend.Entity.User;
     import com.esprit.ms.pidevbackend.Repository.PresenceRepository;
     import com.esprit.ms.pidevbackend.Repository.UserRepository;
+    import com.esprit.ms.pidevbackend.Response.AuthResponse;
     import lombok.AllArgsConstructor;
     import org.springframework.security.crypto.password.PasswordEncoder;
     import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@
 
         UserRepository userRepository;
         PresenceRepository presenceRepository;
+        private JwtTokenProvider jwtTokenProvider;
         private  PasswordEncoder passwordEncoder;
 
         @Override
@@ -158,6 +161,16 @@
         @Override
         public User getUserByemail(String email) {
             return userRepository.findUserByEmailU(email);
+        }
+
+        @Override
+        public AuthResponse login(User user) {
+            User existingUser = userRepository.findUserByEmailU(user.getEmailU());
+            if (existingUser != null && passwordEncoder.matches(user.getMotdepasseU(), existingUser.getMotdepasseU())) {
+                String token = jwtTokenProvider.generateToken(existingUser.getEmailU());
+                return new AuthResponse(token); // Retourner un AuthResponse avec le token
+            }
+            return null; // ou lancer une exception pour les identifiants invalides
         }
 
 

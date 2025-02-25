@@ -1,8 +1,12 @@
 package com.esprit.ms.pidevbackend.Controller;
 import com.esprit.ms.pidevbackend.Entity.Presence;
 import com.esprit.ms.pidevbackend.Entity.User;
+import com.esprit.ms.pidevbackend.Response.AuthResponse;
 import com.esprit.ms.pidevbackend.Service.UserServices;
+import jakarta.annotation.security.PermitAll;
 import lombok.AllArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,7 +15,8 @@ import java.util.List;
 @RestController
 @AllArgsConstructor
 @RequestMapping("api/users")
-@CrossOrigin(origins = "http://localhost:4200")
+@CrossOrigin(origins = "*")
+//@CrossOrigin(origins = "http://localhost:4200")
 
 public class UserRestController {
     private  PasswordEncoder passwordEncoder;
@@ -22,7 +27,9 @@ public class UserRestController {
 
     private  UserServices userServices;
 
+
     @PostMapping("add")
+    @PermitAll
     public User addUser(@RequestBody User user) {
         return userServices.addUser(user);
     }
@@ -74,12 +81,12 @@ public class UserRestController {
         return userServices.getPresencesByid(userId);
     }
     @PostMapping("/login")
-    public String login(@RequestBody User user) {
-        User existingUser = userServices.getUserByemail(user.getEmailU());
-        if (existingUser != null && passwordEncoder.matches(user.getMotdepasseU(), existingUser.getMotdepasseU())) {
-            return "Login successful"; // Vous pouvez retourner un jeton JWT ou d'autres informations ici
+    public ResponseEntity<?> login(@RequestBody User user) {
+        AuthResponse authResponse = userServices.login(user);
+        if (authResponse != null) {
+            return ResponseEntity.ok(authResponse);
         }
-        return "Invalid credentials";
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
     }
 
 

@@ -2,6 +2,7 @@ package com.esprit.ms.pidevbackend.Service;
 
 import com.esprit.ms.pidevbackend.Entity.Presence;
 import com.esprit.ms.pidevbackend.Entity.User;
+import com.esprit.ms.pidevbackend.Response.AuthResponse;
 
 import java.util.List;
 
@@ -17,6 +18,7 @@ public interface IuserServices {
     public Presence getPresenceByid(Long id);
     public List<Presence> getPresencesByid(Long id);
     public  User getUserByemail(String email);
+    public AuthResponse login(User user);
 
 
 
