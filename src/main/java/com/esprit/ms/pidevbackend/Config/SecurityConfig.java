@@ -110,12 +110,25 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
+                .cors() // Activer CORS
+                .and()
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/users/login", "/api/users/add").permitAll()  // Autorise les accès sans token
+                        .requestMatchers("/api/users/login", "/api/users/add").permitAll()
+                        .requestMatchers("/api/users/getAll").permitAll()// Autorise les accès sans token
                         .anyRequest().authenticated() // Nécessite une authentification pour toutes les autres requêtes
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class) // Ajouter le filtre JWT
-                .logout(logout -> logout.permitAll());
+                //.logout(logout -> logout.permitAll());
+                .logout(logout -> logout
+                        .logoutUrl("/api/users/logout") // URL du logout
+                        .logoutSuccessHandler((request, response, authentication) -> {
+                            response.setStatus(200);
+                            response.getWriter().write("{\"message\": \"Déconnexion réussie\"}");
+                            response.getWriter().flush();
+                        })
+                        .invalidateHttpSession(true) // Invalider la session
+                        .deleteCookies("JSESSIONID") // Supprimer les cookies
+                );
 
         return http.build();
     }
