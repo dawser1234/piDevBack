@@ -23,6 +23,7 @@ public class User {
      String prenomU;
      String emailU;
      String motdepasseU;
+     String numtel;
      float salaireU;
     @Enumerated(EnumType.STRING)
     Role role;

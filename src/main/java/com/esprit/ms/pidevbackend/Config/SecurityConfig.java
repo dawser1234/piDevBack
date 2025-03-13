@@ -113,10 +113,19 @@ public class SecurityConfig {
                 .cors() // Activer CORS
                 .and()
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/users/login", "/api/users/add").permitAll()
-                        .requestMatchers("/api/users/getAll").permitAll()// Autorise les accès sans token
+                        .requestMatchers("/api/users/login","/login/oauth2/code/google","/code/google").permitAll()
+                        .requestMatchers("/api/users/getAll").permitAll()
+                        .requestMatchers("/api/users/code/google").permitAll()
+                        .requestMatchers("/api/users/add-recaptcha").permitAll()
+                        .requestMatchers("/api/users/add").permitAll()
+                        .requestMatchers("/api/users/forgot-password").permitAll()
+                        .requestMatchers("/api/users/reset-password").permitAll()
+                        .requestMatchers("/api/users/approve-login/**").permitAll()// Autorise les accès sans token
                         .anyRequest().authenticated() // Nécessite une authentification pour toutes les autres requêtes
                 )
+
+                .oauth2Login()  // Activer l'authentification via OAuth2 (Google)
+                .and()
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class) // Ajouter le filtre JWT
                 //.logout(logout -> logout.permitAll());
                 .logout(logout -> logout

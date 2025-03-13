@@ -5,6 +5,7 @@ import com.esprit.ms.pidevbackend.Entity.User;
 import com.esprit.ms.pidevbackend.Response.AuthResponse;
 
 import java.util.List;
+import java.util.Map;
 
 public interface IuserServices {
     public User addUser(User user);
@@ -19,6 +20,9 @@ public interface IuserServices {
     public List<Presence> getPresencesByid(Long id);
     public  User getUserByemail(String email);
     public AuthResponse login(User user);
+   //public void resetPassword(String email, String code, String newPassword);
+   public void resetPassword(String email, String code, String newPassword);
+
 
 
 
