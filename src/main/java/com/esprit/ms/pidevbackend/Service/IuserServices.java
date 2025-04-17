@@ -15,6 +15,7 @@ public interface IuserServices {
     public User UpdateUser(Long id ,User user);
     public Presence addPresence(Presence presence);
     public  void  deletepresence(Long id);
+    public List<Presence>getallpresence();
     public  Presence UpdatePresence(Long idp ,Presence presence);
     public Presence getPresenceByid(Long id);
     public List<Presence> getPresencesByid(Long id);

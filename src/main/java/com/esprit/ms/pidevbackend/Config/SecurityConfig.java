@@ -37,21 +37,29 @@ package com.esprit.ms.pidevbackend.Config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.web.firewall.HttpFirewall;
+import org.springframework.security.web.firewall.StrictHttpFirewall;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    @Autowired
+    private OAuth2AuthorizedClientService authorizedClientService;
 
     @Autowired
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
@@ -113,19 +121,22 @@ public class SecurityConfig {
                 .cors() // Activer CORS
                 .and()
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/users/login","/login/oauth2/code/google","/code/google").permitAll()
+                        .requestMatchers("/api/users/login").permitAll()
+                        .requestMatchers("/update-profile/{id}").permitAll()
                         .requestMatchers("/api/users/getAll").permitAll()
                         .requestMatchers("/api/users/code/google").permitAll()
                         .requestMatchers("/api/users/add-recaptcha").permitAll()
                         .requestMatchers("/api/users/add").permitAll()
                         .requestMatchers("/api/users/forgot-password").permitAll()
                         .requestMatchers("/api/users/reset-password").permitAll()
+
+
                         .requestMatchers("/api/users/approve-login/**").permitAll()// Autorise les accès sans token
                         .anyRequest().authenticated() // Nécessite une authentification pour toutes les autres requêtes
                 )
 
-                .oauth2Login()  // Activer l'authentification via OAuth2 (Google)
-                .and()
+                //.oauth2Login() // Activer l'authentification via OAuth2 (Google)
+                //and()
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class) // Ajouter le filtre JWT
                 //.logout(logout -> logout.permitAll());
                 .logout(logout -> logout
@@ -141,5 +152,144 @@ public class SecurityConfig {
 
         return http.build();
     }
-
 }
+    /*@Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable())
+                .cors() // Activer CORS
+                .and()
+                .authorizeHttpRequests(authz -> authz
+                        .requestMatchers("/api/users/login", "/login/oauth2/code/google", "/code/google").permitAll()
+                        .requestMatchers("/api/users/getAll").permitAll()
+                        .requestMatchers("/api/users/code/google").permitAll()
+                        .requestMatchers("/api/users/add-recaptcha").permitAll()
+                        .requestMatchers("/api/users/add").permitAll()
+                        .requestMatchers("/api/users/forgot-password").permitAll()
+                        .requestMatchers("/api/users/reset-password").permitAll()
+                        .requestMatchers("/api/users/approve-login/**").permitAll()  // Autorise les accès sans token
+                        .anyRequest().authenticated() // Nécessite une authentification pour toutes les autres requêtes
+                )
+                .oauth2Login(Customizer.withDefaults())  // Activer l'authentification via OAuth2 (Google)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class) // Ajouter le filtre JWT
+                .logout(logout -> logout
+                        .logoutUrl("/api/users/logout") // URL du logout
+                        .logoutSuccessHandler((request, response, authentication) -> {
+                            response.setStatus(200);
+                            response.getWriter().write("{\"message\": \"Déconnexion réussie\"}");
+                            response.getWriter().flush();
+                        })
+                        .invalidateHttpSession(true) // Invalider la session
+                        .deleteCookies("JSESSIONID") // Supprimer les cookies
+                );
+
+        return http.build();
+    }*/
+    /*@Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable())
+                .cors() // Activer CORS
+                .and()
+                .authorizeHttpRequests(authz -> authz
+                        .requestMatchers("/api/users/login", "/login/oauth2/code/google", "/code/google").permitAll()
+                        .requestMatchers("/api/users/getAll").permitAll()
+                        .requestMatchers("/api/users/code/google").permitAll()
+                        .requestMatchers("/api/users/add-recaptcha").permitAll()
+                        .requestMatchers("/api/users/add").permitAll()
+                        .requestMatchers("/api/users/forgot-password").permitAll()
+                        .requestMatchers("/api/users/reset-password").permitAll()
+                        .requestMatchers("/api/users/approve-login/**").permitAll()  // Autoriser les accès sans token
+                        .anyRequest().authenticated() // Nécessite une authentification pour toutes les autres requêtes
+                )
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // Ajouter la gestion des sessions ici
+                )
+                .oauth2Login(Customizer.withDefaults()) // Activer l'authentification via OAuth2 (Google)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class) // Ajouter le filtre JWT
+                .logout(logout -> logout
+                        .logoutUrl("/api/users/logout") // URL du logout
+                        .logoutSuccessHandler((request, response, authentication) -> {
+                            response.setStatus(200);
+                            response.getWriter().write("{\"message\": \"Déconnexion réussie\"}");
+                            response.getWriter().flush();
+                        })
+                        .invalidateHttpSession(true) // Invalider la session
+                        .deleteCookies("JSESSIONID") // Supprimer les cookies
+                );
+
+        return http.build();
+    }
+
+    @Bean
+    public HttpFirewall allowSemicolonHttpFirewall() {
+        StrictHttpFirewall firewall = new StrictHttpFirewall();
+        firewall.setAllowSemicolon(true);  // Permet l'utilisation de `;` dans l'URL
+        return firewall;
+    }
+}*/
+    /*@Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http , JwtTokenProvider jwtTokenProvider) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable())
+                .cors() // Activer CORS
+                .and()
+                .authorizeHttpRequests(authz -> authz
+                        .requestMatchers("/api/users/login",  "/code/google").permitAll()
+                        .requestMatchers("/api/users/getAll").permitAll()
+                        .requestMatchers("/api/users/code/google").permitAll()
+                        .requestMatchers("/login/oauth2/code/google").permitAll()
+                        .requestMatchers("/api/users/add-recaptcha").permitAll()
+                        .requestMatchers("/api/users/add").permitAll()
+                        .requestMatchers("/api/users/forgot-password").permitAll()
+                        .requestMatchers("/api/users/reset-password").permitAll()
+                        .requestMatchers("/api/users/approve-login/**").permitAll()  // Autoriser les accès sans token
+                        .anyRequest().authenticated() // Nécessite une authentification pour toutes les autres requêtes
+                )
+                /*.sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // Gestion des sessions sans état
+                )*/
+                /*.oauth2Login(oauth2 -> oauth2
+                        .loginPage("/login") // Page de connexion OAuth2
+                        .successHandler((request, response, authentication) -> {
+                            // Obtenez les informations nécessaires de l'authentification OAuth2
+                            String username = authentication.getName();
+                            String role = "ROLE_USER"; // Récupérer le rôle en fonction de l'utilisateur
+                            Long idU = 123L; // Récupérer l'ID utilisateur via un service ou en le récupérant de la session Google
+
+                            // Générer le JWT avec JwtTokenProvider
+                            String token = jwtTokenProvider.generateToken(username, role, idU);
+
+                            // Ajouter le token JWT dans la réponse HTTP
+                            response.addHeader("Authorization", "Bearer " + token);
+                            response.setStatus(200);
+                        })
+                )*/
+                /*.oauth2Login().disable()
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class) // Ajouter le filtre JWT
+                .logout(logout -> logout
+                        .logoutUrl("/api/users/logout") // URL du logout
+                        .logoutSuccessHandler((request, response, authentication) -> {
+                            response.setStatus(200);
+                            response.getWriter().write("{\"message\": \"Déconnexion réussie\"}");
+                            response.getWriter().flush();
+                        })
+                        .invalidateHttpSession(true) // Invalider la session
+                        .deleteCookies("JSESSIONID") // Supprimer les cookies
+                );
+
+        return http.build();
+    }
+
+    @Bean
+    public HttpFirewall allowSemicolonHttpFirewall() {
+        StrictHttpFirewall firewall = new StrictHttpFirewall();
+        firewall.setAllowSemicolon(true);  // Permet l'utilisation de `;` dans l'URL
+        return firewall;
+    }
+
+
+}*/
+
+
+

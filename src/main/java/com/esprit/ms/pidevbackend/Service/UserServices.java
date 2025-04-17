@@ -12,6 +12,7 @@
     import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
     import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
     import com.google.api.client.http.javanet.NetHttpTransport;
+    import com.google.gson.JsonArray;
     import com.google.gson.JsonElement;
     import com.google.gson.JsonObject;
     import com.google.gson.JsonParser;
@@ -20,9 +21,12 @@
     import org.springframework.http.ResponseEntity;
     import org.springframework.security.crypto.password.PasswordEncoder;
     import org.springframework.stereotype.Service;
+    import org.springframework.web.client.RestTemplate;
 
     import java.io.IOException;
     import java.security.GeneralSecurityException;
+    import java.time.LocalDate;
+    import java.time.ZoneId;
     import java.util.*;
 
 
@@ -38,16 +42,33 @@
         private  PasswordEncoder passwordEncoder;
         private EmailService emailService;
 
-        @Override
+        /*@Override
         public User addUser(User user) {
             user.setMotdepasseU(passwordEncoder.encode(user.getMotdepasseU()));
             return userRepository.save(user);
+        }*/
+        @Override
+        public User addUser(User user) {
+            // Vérifier si un utilisateur avec le même email existe déjà
+            User existingUser = userRepository.findUserByEmailU(user.getEmailU());
+            if (existingUser != null) {
+                throw new IllegalArgumentException("Email already exists");
+            }
+
+            // Encoder le mot de passe
+            user.setMotdepasseU(passwordEncoder.encode(user.getMotdepasseU()));
+
+            // Sauvegarder l'utilisateur
+            return userRepository.save(user);
         }
+
 
         @Override
         public List<User> getallUser() {
             return userRepository.findAll();
         }
+
+
 
         /*@Override
         public User getUserbyId(Long id) {
@@ -130,8 +151,13 @@
 
         }
 
+        @Override
+        public List<Presence> getallpresence() {
+            return presenceRepository.findAll();
+        }
 
-       @Override
+
+        @Override
        public Presence UpdatePresence(Long idp, Presence presence) {
            // Vérifier si la présence existe
            if (presenceRepository.existsById(idp)) {
@@ -424,6 +450,100 @@
                 throw new RuntimeException("Code de vérification invalide ou email non trouvé.");
             }
         }
+        public User getUserById(Long idU) {
+            return userRepository.findUserByIdU(idU);
+
+        }
+        public User save(User user) {
+            return userRepository.save(user);
+            // Sauvegarder l'utilisateur
+        }
+        /*public Presence addPresenceWithHolidayCheck(Presence presence) {
+            // Conversion de dateP en LocalDate
+            LocalDate presenceDate = presence.getDateP().toInstant()
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate();
+
+            int year = presenceDate.getYear();
+            String countryCode = "DE";  // Code pour la Tunisie
+
+            // Construire l'URL pour l'API Nager.Date
+            String url = String.format("https://date.nager.at/api/v3/PublicHolidays/%d/%s", year, countryCode);
+
+            // Création d'un RestTemplate
+            RestTemplate restTemplate = new RestTemplate();
+
+            // Récupérer la réponse de l'API sous forme de chaîne JSON
+            String response = restTemplate.getForObject(url, String.class);
+
+            // Parsez la réponse JSON sans créer de modèle spécifique (utilisation de Gson ici)
+            boolean isHoliday = false;
+            if (response != null) {
+                JsonObject jsonObject = JsonParser.parseString(response).getAsJsonObject();
+                JsonObject responseObj = jsonObject.get("response").getAsJsonObject();
+                if (responseObj.has("holidays")) {
+                    for (JsonElement holidayElement : responseObj.get("holidays").getAsJsonArray()) {
+                        JsonObject holidayObj = holidayElement.getAsJsonObject();
+                        // Récupérer la date en ISO format (ex: "2025-01-01")
+                        String holidayDateIso = holidayObj.get("date").getAsJsonObject().get("iso").getAsString();
+                        if (presenceDate.toString().equals(holidayDateIso)) {
+                            isHoliday = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (isHoliday) {
+                System.out.println("La date " + presence.getDateP() + " est un jour férié en Tunisie.");
+                // Choix de la logique :
+                // soit ne pas enregistrer cette présence,
+                // soit la marquer différemment
+                // Ici, on continue et on enregistre, mais vous pouvez adapter.
+            }
+
+            return presenceRepository.save(presence);
+        }*/
+        public Presence addPresenceWithHolidayCheck(Presence presence) {
+            // Conversion de dateP en LocalDate
+            LocalDate presenceDate = presence.getDateP().toInstant()
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate();
+
+            int year = presenceDate.getYear();
+            String countryCode = "DE";  // 🇹🇳 Code pour la Tunisie (attention : tu avais "DE")
+
+            // Construire l'URL pour l'API Nager.Date
+            String url = String.format("https://date.nager.at/api/v3/PublicHolidays/%d/%s", year, countryCode);
+
+            RestTemplate restTemplate = new RestTemplate();
+            String response = restTemplate.getForObject(url, String.class);
+
+            boolean isHoliday = false;
+            if (response != null) {
+                JsonArray holidaysArray = JsonParser.parseString(response).getAsJsonArray();
+
+                for (JsonElement holidayElement : holidaysArray) {
+                    JsonObject holidayObj = holidayElement.getAsJsonObject();
+                    String holidayDate = holidayObj.get("date").getAsString();
+
+                    if (presenceDate.toString().equals(holidayDate)) {
+                        isHoliday = true;
+                        break;
+                    }
+                }
+            }
+
+            if (isHoliday) {
+                System.out.println("La date " + presence.getDateP() + " est un jour férié en Tunisie.");
+                throw new IllegalArgumentException("Impossible d'enregistrer une présence un jour férié.");
+                // Ici tu peux soit refuser l'enregistrement, soit le marquer comme "jour férié", etc.
+            }
+
+            return presenceRepository.save(presence);
+        }
+
+
 
 
 

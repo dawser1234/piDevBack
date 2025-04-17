@@ -174,6 +174,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 requestPath.equals(contextPath + "/api/users/add") ||
                 requestPath.equals(contextPath + "/api/users/add-recaptcha") ||
                 requestPath.equals(contextPath + "/api/users/forgot-password") ||
+                requestPath.equals(contextPath + "/update-profile/{id}") ||
                 requestPath.equals(contextPath + "/api/users/reset-password") ||
                 requestPath.startsWith("/oauth2") ||
                 requestPath.equals(contextPath + "/login/oauth2/code/google") ||

@@ -6,22 +6,24 @@ import com.esprit.ms.pidevbackend.Entity.Role;
 import com.esprit.ms.pidevbackend.Entity.User;
 import com.esprit.ms.pidevbackend.Response.AuthResponse;
 import com.esprit.ms.pidevbackend.Service.EmailService;
+import com.esprit.ms.pidevbackend.Service.EmailVerificationService;
 import com.esprit.ms.pidevbackend.Service.UserServices;
 import jakarta.annotation.security.PermitAll;
 import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @AllArgsConstructor
@@ -39,6 +41,8 @@ public class UserRestController {
     private  UserServices userServices;
     private JwtTokenProvider jwtTokenProvider;
     private EmailService emailService;
+    @Autowired
+    private EmailVerificationService emailVerificationService;
 
 
 
@@ -59,6 +63,8 @@ public class UserRestController {
     public List<User> getAllUsers() {
         return userServices.getallUser();
     }
+    @GetMapping("getAllpresence")
+    public  List<Presence>getALLpresence(){return userServices.getallpresence();}
 
     @DeleteMapping("delete/{id}")
     public void deleteUser(@PathVariable("id") Long id) {
@@ -154,9 +160,9 @@ public class UserRestController {
 
        Map<String, String> params = new HashMap<>();
        params.put("code", code);
-       params.put("client_id", "994519531998-tsrffi97f9bt8jmvraeffcjodd09kt6h.apps.googleusercontent.com");
-       params.put("client_secret", "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"); // Remplace par ton secret client
-       params.put("redirect_uri", "http://localhost:4200/auth/callback");
+       params.put("client_id", "411235453261-km01fbvbtsq1vuk1c1bqqj2eattbc6t6.apps.googleusercontent.com");
+       params.put("client_secret", "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"); // Remplace par ton secret client
+       params.put("redirect_uri", "http://localhost:8089/code/google");
        params.put("grant_type", "authorization_code");
 
        ResponseEntity<Map> response = restTemplate.postForEntity(googleTokenUrl, params, Map.class);
@@ -203,6 +209,26 @@ public class UserRestController {
        // 5️⃣ Retourner le token à Angular
        return ResponseEntity.ok(Collections.singletonMap("token", token));
    }
+   /*@GetMapping("/usergoogle")
+   public String getUserInfo(Authentication authentication) {
+       if (authentication == null || !(authentication instanceof OAuth2AuthenticationToken)) {
+           return "Utilisateur non authentifié ou authentification incorrecte.";
+       }
+
+       OAuth2AuthenticationToken oauth2Token = (OAuth2AuthenticationToken) authentication;
+
+       // Accéder aux informations de l'utilisateur directement via OAuth2AuthenticationToken
+       String username = oauth2Token.getName(); // Nom de l'utilisateur
+       Collection<? extends GrantedAuthority> authorities = oauth2Token.getAuthorities(); // Rôles et autorités
+       OAuth2User principal = oauth2Token.getPrincipal(); // Informations complètes de l'utilisateur (sous forme de OAuth2User)
+
+       // Exemple d'accès à des informations utilisateur spécifiques
+       String email = (String) principal.getAttributes().get("email");
+       String name = (String) principal.getAttributes().get("name");
+
+       return "Nom de l'utilisateur : " + name + ", Email : " + email;
+   }*/
+
 
 
 
@@ -283,10 +309,14 @@ public class UserRestController {
         if (!verifyCaptcha(captchaResponse)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Échec de la vérification reCAPTCHA");
         }
+        if (!emailVerificationService.verifyEmail(user.getEmailU())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Adresse email invalide");
+        }
 
         User addedUser = userServices.addUser(user);
         return ResponseEntity.ok(addedUser);
     }
+
 
     // Méthode pour vérifier le reCAPTCHA
     private boolean verifyCaptcha(String captchaResponse) {
@@ -298,6 +328,64 @@ public class UserRestController {
         Map<String, Object> body = response.getBody();
         return body != null && (Boolean) body.get("success");
     }
+    @GetMapping("/profile-completion/{id}")
+    public ResponseEntity<?> getProfileCompletion(@PathVariable("id") Long id) {
+        User user = userServices.getUserById(id);
+        int progress = user.calculateProfileCompletion();
+        boolean verified = user.isVerified();
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("completion", progress);
+        result.put("verified", verified);
+
+        return ResponseEntity.ok(result);
+    }
+    @PutMapping("/update-profile/{id}")
+    public ResponseEntity<?> updateProfile(@PathVariable("id") Long id, @RequestBody User updatedUser) {
+        // Récupérer l'utilisateur depuis la base de données
+        User user = userServices.getUserById(id);
+
+        if (user == null) {
+            return ResponseEntity.notFound().build(); // L'utilisateur n'existe pas
+        }
+
+        // Mise à jour des informations de l'utilisateur
+        user.setEtude(updatedUser.getEtude());
+        user.setPassion(updatedUser.getPassion());
+        user.setExperience(updatedUser.getExperience());
+        user.setCompetences(updatedUser.getCompetences());
+
+        // Calcul de la nouvelle progression du profil
+        int progress = user.calculateProfileCompletion();
+        user.setProfileCompletion(progress); // Met à jour la progression du profil
+
+        // Enregistrer l'utilisateur mis à jour
+        userServices.save(user);
+
+        // Retourner la progression mise à jour
+        Map<String, Object> result = new HashMap<>();
+        result.put("completion", progress);
+        result.put("verified", user.isVerified());
+
+        return ResponseEntity.ok(result); // Retourner les informations de progression et de vérification
+    }
+    @PostMapping("/{userId}/presences/addWithHolidayCheck")
+    public ResponseEntity<?> addPresenceWithHolidayCheck(@PathVariable Long userId, @RequestBody Presence presence) {
+        // Associer l'utilisateur à la présence (tu peux utiliser un constructeur simple ou setter)
+        User user = new User(userId);
+        presence.setUser(user);
+
+        Presence savedPresence = userServices.addPresenceWithHolidayCheck(presence);
+        if (savedPresence == null) {
+            // Si la présence n'est pas enregistrée car c'est un jour férié, renvoyer un message approprié.
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("La date de présence correspond à un jour férié en Tunisie.");
+        }
+        return ResponseEntity.ok(savedPresence);
+    }
+
+
+
 
 
 }
